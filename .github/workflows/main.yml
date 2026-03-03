@@ -21,7 +21,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Important: 0 fetches all history for changelog generation
+          fetch-depth: 0 # Required to read git history for changelog
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -39,6 +39,11 @@ jobs:
         id: get_version
         run: |
           PROP_FILE="app/version.properties"
+          # Create file if it doesn't exist to prevent grep error
+          if [ ! -f "$PROP_FILE" ]; then
+            echo "patch=0" > "$PROP_FILE"
+            echo "code=1" >> "$PROP_FILE"
+          fi
           OLD_PATCH=$(grep "patch=" "$PROP_FILE" | cut -d'=' -f2)
           OLD_CODE=$(grep "code=" "$PROP_FILE" | cut -d'=' -f2)
           NEW_PATCH=$((OLD_PATCH + 1))
@@ -55,18 +60,18 @@ jobs:
       - name: Generate Changelog
         id: build_changelog
         run: |
-          # Get commits since last tag, or last 5 commits if no tag exists
-          CHANGES=$(git log --pretty=format:"* %s (%h)" -5)
+          # Grabs the last 5 commit messages
           echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGES" >> $GITHUB_OUTPUT
+          git log --pretty=format:"* %s (%h)" -5 >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Commit and Push Version Bump
+      - name: Commit Version Bump
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add "${{ env.PROP_PATH }}"
-          git commit -m "chore: bump version to v${{ env.NEW_VERSION }} [skip ci]" || echo "No changes to commit"
+          git commit -m "chore: bump version to v${{ env.NEW_VERSION }} [skip ci]" || echo "No changes"
           git push origin main --force-with-lease
 
       - name: Build Debug APK
@@ -76,12 +81,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: CalmApp-Debug-APK
+          # Explicit path to the default Gradle output location
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error # This will make the build FAIL here if the APK is missing
 
   release:
     name: Create Production-Ready Release
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Download APK
         uses: actions/download-artifact@v4
@@ -95,13 +104,13 @@ jobs:
           tag_name: v${{ needs.build.outputs.app_version }}
           name: "CalmPlayer v${{ needs.build.outputs.app_version }} Stable"
           body: |
-            ## 📝 Changelog
+            ## 📝 What's New
             ${{ needs.build.outputs.changelog }}
             
             ---
-            **Build Info:**
-            - **Version:** ${{ needs.build.outputs.app_version }}
-            - **Hardware Compatibility:** Oppo Reno 3 / Intel UHD 600
+            **System Requirements:**
+            - Android 12+ (Optimized for ColorOS)
+            - Minimal RAM usage for Celeron/4GB devices.
           draft: false
           prerelease: false
           files: release-artifacts/app-debug.apk
