@@ -21,7 +21,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Needed for git log changelog
+          fetch-depth: 0 # Required for git log history
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -39,6 +39,8 @@ jobs:
         id: get_version
         run: |
           PROP_FILE="app/version.properties"
+          # Ensure directory exists for version file
+          mkdir -p app
           if [ ! -f "$PROP_FILE" ]; then
             echo "patch=0" > "$PROP_FILE"
             echo "code=1" >> "$PROP_FILE"
@@ -75,11 +77,20 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Prepare APK for Upload
-        # This solves the "Artifact not found" error by finding ANY apk in the build folder
+      - name: Find and Prepare APK
         run: |
           mkdir -p final-artifacts
-          find app/build/outputs/apk/debug/ -name "*.apk" -exec cp {} final-artifacts/calmplayer-release.apk \;
+          # The 'Force Search' strategy: find any APK in any build folder
+          find . -name "*.apk" -path "*/build/*" -exec cp {} final-artifacts/calmplayer-release.apk \;
+          
+          if [ -f final-artifacts/calmplayer-release.apk ]; then
+            echo "Success: APK found and moved to staging."
+          else
+            echo "Error: Gradle built successfully but no APK was found in build folders."
+            # List files to help debug if it fails
+            ls -R
+            exit 1
+          fi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
@@ -107,13 +118,14 @@ jobs:
           tag_name: v${{ needs.build.outputs.app_version }}
           name: "CalmPlayer v${{ needs.build.outputs.app_version }} Stable"
           body: |
-            ## 📝 What's New (Changelog)
+            ## 📝 Changelog
             ${{ needs.build.outputs.changelog }}
             
             ---
-            **📱 Device Specs:**
-            - **Target:** Android 12 + (optimized for ColorOS)
-            - **Build Architecture:** universal-debug
+            **📦 Build Details:**
+            - **Version:** ${{ needs.build.outputs.app_version }}
+            - **Compatibility:** Android 12 + 
+            - **Hardware:** Optimized for Celeron coloros / 4GB RAM devices.
           draft: false
           prerelease: false
           files: release-artifacts/calmplayer-release.apk
