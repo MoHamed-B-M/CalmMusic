@@ -110,7 +110,6 @@ jobs:
             ---
             **System Requirements:**
             - Android 12+ (Optimized for ColorOS)
-            - Minimal RAM usage for Celeron/4GB devices.
           draft: false
           prerelease: false
           files: release-artifacts/app-debug.apk
