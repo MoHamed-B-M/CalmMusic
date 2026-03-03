@@ -14,13 +14,13 @@
 -keep class coil.** { *; }
 
 # Keep our data classes
--keep class com.mohamed.calmplayer.data.Song { *; }
--keep class com.mohamed.calmplayer.data.Album { *; }
--keep class com.mohamed.calmplayer.data.Artist { *; }
--keep class com.mohamed.calmplayer.data.ThemeConfig { *; }
+-keep class com.music.calmplayer.data.Song { *; }
+-keep class com.music.calmplayer.data.Album { *; }
+-keep class com.music.calmplayer.data.Artist { *; }
+-keep class com.music.calmplayer.data.ThemeConfig { *; }
 
 # Keep the service
--keep class com.mohamed.calmplayer.service.PlaybackService { *; }
+-keep class com.music.calmplayer.service.PlaybackService { *; }
 
 # Kotlin coroutines
 -keepclassmembers class kotlinx.coroutines.** { volatile <fields>; }
