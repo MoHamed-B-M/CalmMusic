@@ -15,12 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       app_version: ${{ steps.get_version.outputs.VERSION }}
+      changelog: ${{ steps.build_changelog.outputs.CHANGELOG }}
     
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0 # Important: 0 fetches all history for changelog generation
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -37,49 +38,45 @@ jobs:
       - name: Auto-Increment Version
         id: get_version
         run: |
-          # 1. Identify the version properties file
           PROP_FILE="app/version.properties"
-          echo "PROP_PATH=$PROP_FILE" >> $GITHUB_ENV
-
-          # 2. Extract current values
           OLD_PATCH=$(grep "patch=" "$PROP_FILE" | cut -d'=' -f2)
           OLD_CODE=$(grep "code=" "$PROP_FILE" | cut -d'=' -f2)
-          
-          # 3. Increment logic
           NEW_PATCH=$((OLD_PATCH + 1))
           NEW_CODE=$((OLD_CODE + 1))
+          NEW_NAME="1.0.$NEW_PATCH"
           
-          NEW_NAME="1.0.$NEW_PATCH-alpha"
-
-          # 4. Perform the update
           sed -i "s/patch=.*/patch=$NEW_PATCH/" "$PROP_FILE"
           sed -i "s/code=.*/code=$NEW_CODE/" "$PROP_FILE"
           
           echo "VERSION=$NEW_NAME" >> $GITHUB_OUTPUT
           echo "NEW_VERSION=$NEW_NAME" >> $GITHUB_ENV
+          echo "PROP_PATH=$PROP_FILE" >> $GITHUB_ENV
+
+      - name: Generate Changelog
+        id: build_changelog
+        run: |
+          # Get commits since last tag, or last 5 commits if no tag exists
+          CHANGES=$(git log --pretty=format:"* %s (%h)" -5)
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Commit and Push Version Bump
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          if git diff --exit-code "${{ env.PROP_PATH }}"; then
-            echo "No version change."
-          else
-            git add "${{ env.PROP_PATH }}"
-            git commit -m "chore: bump version to v${{ env.NEW_VERSION }} [skip ci]"
-            git fetch origin main
-            git push origin main --force-with-lease
-          fi
+          git add "${{ env.PROP_PATH }}"
+          git commit -m "chore: bump version to v${{ env.NEW_VERSION }} [skip ci]" || echo "No changes to commit"
+          git push origin main --force-with-lease
 
       - name: Build Debug APK
-        run: ./gradlew clean assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: CalmApp-Debug-APK
-          path: "**/build/outputs/apk/debug/*.apk"
+          path: app/build/outputs/apk/debug/app-debug.apk
 
   release:
     name: Create Production-Ready Release
@@ -92,19 +89,21 @@ jobs:
           name: CalmApp-Debug-APK
           path: release-artifacts
 
-      - name: Publish GitHub Pre-Release
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.build.outputs.app_version }}
-          name: "CalmPlayer v${{ needs.build.outputs.app_version }} Stable Alpha"
+          name: "CalmPlayer v${{ needs.build.outputs.app_version }} Stable"
           body: |
-            ### 🏁 Production-Ready Build v${{ needs.build.outputs.app_version }}
-            - **Optimized:** Code shrinking and R8 obfuscation enabled.
-            - **UX:** Bouncy swipe gestures and Material 3 Expressive UI.
-            - **Stability:** Fixed Media3 playback and navigation logic.
-            - **Legacy Fix:** Removed all 'util' reference errors and Git markers.
+            ## 📝 Changelog
+            ${{ needs.build.outputs.changelog }}
+            
+            ---
+            **Build Info:**
+            - **Version:** ${{ needs.build.outputs.app_version }}
+            - **Hardware Compatibility:** Oppo Reno 3 / Intel UHD 600
           draft: false
-          prerelease: true
-          files: release-artifacts/**/*.apk
+          prerelease: false
+          files: release-artifacts/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
