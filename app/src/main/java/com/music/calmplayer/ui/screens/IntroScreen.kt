@@ -1,15 +1,13 @@
 package com.music.calmplayer.ui.screens
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -22,18 +20,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.music.calmplayer.domain.SettingsViewModel
 import com.music.calmplayer.data.ThemeConfig
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,12 +36,12 @@ fun IntroScreen(
     onComplete: () -> Unit,
     viewModel: SettingsViewModel
 ) {
+    val context = LocalContext.current
     val pagerState = rememberPagerState(pageCount = { 5 })
     val coroutineScope = rememberCoroutineScope()
     val themeConfig by viewModel.themeState.collectAsState()
     
-    // Check initial permissions
-    val context = LocalContext.current
+    // Permission States
     var hasMusicPermission by remember { 
         mutableStateOf(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -61,124 +55,76 @@ fun IntroScreen(
         mutableStateOf(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
-            } else {
-                true // Bluetooth connect permission not strictly required or auto-granted on older os
-            }
+            } else { true }
         )
     }
 
-    val requestMusicPermission = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        hasMusicPermission = isGranted
-    }
-    
-    val requestBluetoothPermission = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        hasBluetoothPermission = isGranted
-    }
+    val requestMusicPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { hasMusicPermission = it }
+    val requestBluetoothPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { hasBluetoothPermission = it }
 
     Scaffold(
         bottomBar = {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 24.dp)
+                    .padding(24.dp)
                     .height(56.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Back Button
                 if (pagerState.currentPage > 0) {
                     OutlinedButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                            }
-                        },
+                        onClick = { coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) } },
                         shape = RoundedCornerShape(20.dp),
                         modifier = Modifier.weight(1f).height(56.dp)
-                    ) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back", modifier = Modifier.padding(end = 8.dp))
-                        Text("Back")
-                    }
-                } else {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
+                    ) { Text("Back") }
+                } else { Spacer(modifier = Modifier.weight(1f)) }
                 
-                // Indicator
-                Column(
-                    modifier = Modifier.weight(1f),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(Icons.Filled.Headphones, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        "${pagerState.currentPage + 1} of 12", // Kept as requested in prompt "page x of 12" to match literal text but maybe they meant 5. Doing x of 12 to match exact design literal. Wait, I will use "page x of 12" since design says exactly "x of 12"
+                        "${pagerState.currentPage + 1} of 5",
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
                     )
                 }
                 
-                // Next / Get Started Button
                 Button(
                     onClick = {
                         if (pagerState.currentPage < 4) {
-                            coroutineScope.launch {
-                                pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                            }
+                            coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
                         } else {
+                            // Save preference and finish
+                            val sharedPrefs = context.getSharedPreferences("calm_prefs", Context.MODE_PRIVATE)
+                            sharedPrefs.edit().putBoolean("is_first_run", false).apply()
                             onComplete()
                         }
                     },
                     shape = RoundedCornerShape(20.dp),
                     modifier = Modifier.weight(1f).height(56.dp)
                 ) {
-                    if (pagerState.currentPage < 4) {
-                        Text("Next")
-                        Icon(Icons.Filled.ArrowForward, contentDescription = "Next", modifier = Modifier.padding(start = 8.dp))
-                    } else {
-                        Text("Finish")
-                    }
+                    Text(if (pagerState.currentPage < 4) "Next" else "Finish")
                 }
             }
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize()
-            ) { page ->
-                when (page) {
-                    0 -> WelcomeStep()
-                    1 -> PermissionsStep(
-                        hasMusicPermission = hasMusicPermission,
-                        hasBluetoothPermission = hasBluetoothPermission,
-                        onRequestMusic = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                requestMusicPermission.launch(Manifest.permission.READ_MEDIA_AUDIO)
-                            } else {
-                                requestMusicPermission.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-                            }
-                        },
-                        onRequestBluetooth = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                requestBluetoothPermission.launch(Manifest.permission.BLUETOOTH_CONNECT)
-                            }
-                        }
-                    )
-                    2 -> CustomizationStep(
-                        themeConfig = themeConfig,
-                        onThemeChange = { viewModel.setTheme(it) }
-                    )
-                    3 -> GesturesStep()
-                    4 -> FilterMusicStep()
-                }
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize().padding(paddingValues).background(MaterialTheme.colorScheme.background)
+        ) { page ->
+            when (page) {
+                0 -> WelcomeStep()
+                1 -> PermissionsStep(
+                    hasMusicPermission, hasBluetoothPermission,
+                    onRequestMusic = {
+                        val perm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) Manifest.permission.READ_MEDIA_AUDIO else Manifest.permission.READ_EXTERNAL_STORAGE
+                        requestMusicPermission.launch(perm)
+                    },
+                    onRequestBluetooth = { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) requestBluetoothPermission.launch(Manifest.permission.BLUETOOTH_CONNECT) }
+                )
+                2 -> CustomizationStep(themeConfig, onThemeChange = { viewModel.setTheme(it) })
+                3 -> GesturesStep()
+                4 -> FilterMusicStep()
             }
         }
     }
@@ -191,27 +137,13 @@ fun WelcomeStep() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            Icons.Filled.Headphones,
-            contentDescription = null,
-            modifier = Modifier.size(120.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
+        Icon(Icons.Filled.MusicNote, null, modifier = Modifier.size(120.dp), tint = MaterialTheme.colorScheme.primary)
         Spacer(modifier = Modifier.height(32.dp))
+        Text("CalmMusic", style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
+        Text("Pure Sound. Zero Distraction.", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "Rhythm",
-            style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Your Music Your Rhythm",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        Text(
-            text = "Personalize every aspect of your listening experience with powerful features and complete privacy. Play your music offline, ad-free, with full control.",
+            "Welcome to a refined listening experience. Optimized for your device, CalmMusic provides high-fidelity offline playback with total privacy.",
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -312,7 +244,7 @@ fun CustomizationStep(themeConfig: ThemeConfig, onThemeChange: (ThemeConfig) -> 
         Spacer(modifier = Modifier.height(24.dp))
         Text("Make Rhythm Yours", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold))
         Spacer(modifier = Modifier.height(8.dp))
-        Text("Personalize Rhythm's appearance to match your style. Choose your system theme, font, or Material You dynamic colors (Android 12+).", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Personalize CalmMusic's appearance to match your style. Choose your system theme, font, or Material You dynamic colors (Android 12+).", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
         
         Spacer(modifier = Modifier.height(32.dp))
         Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
@@ -436,3 +368,4 @@ fun CustomizationSwitch(title: String, subtitle: String, icon: androidx.compose.
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
+

@@ -1,10 +1,7 @@
 package com.music.calmplayer.ui.components
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,17 +12,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.music.calmplayer.data.Song
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -84,23 +80,15 @@ fun FullPlayerContent(
     val context = LocalContext.current
     val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager }
 
-    var sliderScrubbingValue by remember { mutableFloatStateOf(0f) }
-    var isScrubbing by remember { mutableStateOf(false) }
+    val currentProgress = if (duration > 0) position.toFloat() / duration.toFloat() else 0f
 
-    val currentProgress = if (isScrubbing) sliderScrubbingValue else {
-        if (duration > 0) position.toFloat() / duration.toFloat() else 0f
-    }
-
-    val surfaceColor = MaterialTheme.colorScheme.surface
-    val primaryColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-    val gradientBrush = Brush.verticalGradient(
-        colors = listOf(primaryColor, surfaceColor, surfaceColor)
-    )
+    // Matching the dark brown tonal background from your image
+    val tonalBackground = Color(0xFF5D4037) 
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(gradientBrush)
+            .background(tonalBackground)
             .pointerInput(Unit) {
                 detectVerticalDragGestures { _, dragAmount ->
                     if (dragAmount > 50f) onCollapse()
@@ -150,28 +138,30 @@ private fun PlayerUIBody(
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
-
+        // --- Top Bar ---
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().height(56.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onCollapse) {
-                Icon(Icons.Filled.KeyboardArrowDown, "Collapse", modifier = Modifier.size(32.dp))
+                Icon(Icons.Filled.KeyboardArrowDown, null, modifier = Modifier.size(28.dp), tint = Color.White)
             }
-            Text(text = "Now Playing", style = MaterialTheme.typography.titleMedium)
-            IconButton(onClick = { }) { Icon(Icons.Filled.QueueMusic, "Queue") }
+            Text("Now Playing", style = MaterialTheme.typography.titleSmall, color = Color.White.copy(alpha = 0.8f))
+            Row {
+                IconButton(onClick = {}) { Icon(Icons.Filled.PlaylistAdd, null, tint = Color.White) }
+                IconButton(onClick = {}) { Icon(Icons.Filled.Tune, null, tint = Color.White) }
+            }
         }
 
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.weight(0.5f))
 
-        // Album Art
+        // --- Album Art ---
         Box(
             modifier = Modifier
-                .size(320.dp)
+                .fillMaxWidth(0.9f)
+                .aspectRatio(1f)
                 .graphicsLayer {
-                    shadowElevation = 12.dp.toPx()
                     shape = RoundedCornerShape(24.dp)
                     clip = true
                 }
@@ -194,53 +184,80 @@ private fun PlayerUIBody(
             )
         }
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.weight(0.5f))
 
-        // Song Info
-        Column(Modifier.fillMaxWidth()) {
-            Text(text = song.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, maxLines = 1)
-            Text(text = song.artist, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        // --- Info ---
+        Text(song.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, color = Color.White)
+        Text(song.artist, style = MaterialTheme.typography.bodyLarge, color = Color.White.copy(alpha = 0.6f))
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Seekbar
+        // --- Seekbar ---
         Slider(
             value = currentProgress,
             onValueChange = { onPositionChange((it * duration).toLong()) },
             colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.primary,
-                activeTrackColor = MaterialTheme.colorScheme.primary
+                thumbColor = Color(0xFFD7CCC8), // Light brown/cream thumb
+                activeTrackColor = Color(0xFFD7CCC8),
+                inactiveTrackColor = Color.White.copy(alpha = 0.1f)
             )
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(formatTime(position), style = MaterialTheme.typography.labelMedium)
-            Text(formatTime(duration), style = MaterialTheme.typography.labelMedium)
+            Text(formatTime(position), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.6f))
+            Text(formatTime(duration), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.6f))
         }
 
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
-        // Controls
+        // --- Main Controls (Pill Container) ---
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.15f)),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onSkipPrevious) { Icon(Icons.Filled.SkipPrevious, null, modifier = Modifier.size(48.dp)) }
-            
+            IconButton(onClick = onSkipPrevious) { Icon(Icons.Filled.SkipPrevious, null, tint = Color.White, modifier = Modifier.size(32.dp)) }
+
+            // Custom "Squircle" Play/Pause Button
             Surface(
                 onClick = onPlayPause,
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(72.dp)
+                shape = RoundedCornerShape(28.dp),
+                color = Color(0xFFD7CCC8), // Creamy tonal color
+                modifier = Modifier.size(width = 90.dp, height = 70.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, null, modifier = Modifier.size(40.dp))
+                    Icon(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, null, tint = Color(0xFF3E2723), modifier = Modifier.size(40.dp))
                 }
             }
 
-            IconButton(onClick = onSkipNext) { Icon(Icons.Filled.SkipNext, null, modifier = Modifier.size(48.dp)) }
+            IconButton(onClick = onSkipNext) { Icon(Icons.Filled.SkipNext, null, tint = Color.White, modifier = Modifier.size(32.dp)) }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // --- Secondary Controls (Small Pill) ---
+        Row(
+            modifier = Modifier
+                .width(220.dp)
+                .height(64.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.1f)),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = {}) { Icon(Icons.Filled.Shuffle, null, tint = Color.White.copy(alpha = 0.7f)) }
+            Surface(shape = CircleShape, color = Color.White.copy(alpha = 0.15f), modifier = Modifier.size(44.dp)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Repeat, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                }
+            }
+            IconButton(onClick = {}) { Icon(Icons.Filled.FavoriteBorder, null, tint = Color.White.copy(alpha = 0.7f)) }
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 

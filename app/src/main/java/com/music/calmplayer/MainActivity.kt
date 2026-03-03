@@ -1,13 +1,9 @@
 package com.music.calmplayer
 
-import android.content.Intent
+import android.content.Context
 import android.os.Bundle
-import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -26,7 +22,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -44,7 +39,6 @@ import com.music.calmplayer.ui.theme.CalmMusicTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Make the app draw under the status bar for a modern look
         WindowCompat.setDecorFitsSystemWindows(window, false)
         
         setContent {
@@ -58,11 +52,25 @@ class MainActivity : ComponentActivity() {
             }
 
             CalmMusicTheme(darkTheme = isDark) {
-                var hasSeenIntro by remember { mutableStateOf(false) } 
+                val context = LocalContext.current
+                // Use a shared preference key to check if intro was completed
+                val sharedPrefs = remember { context.getSharedPreferences("calm_prefs", Context.MODE_PRIVATE) }
                 
-                if (!hasSeenIntro) {
+                // State initialized from storage
+                var hasSeenIntro by remember { 
+                    mutableStateOf(sharedPrefs.getBoolean("is_first_run", false).let { !it && sharedPrefs.contains("is_first_run") }) 
+                }
+                
+                // If it's the very first launch, the key won't exist.
+                val isFirstLaunch = remember { sharedPrefs.getBoolean("is_first_run", true) }
+
+                if (isFirstLaunch) {
                     IntroScreen(
-                        onComplete = { hasSeenIntro = true },
+                        onComplete = { 
+                            sharedPrefs.edit().putBoolean("is_first_run", false).apply()
+                            // This triggers the switch to AppMainLayout
+                            hasSeenIntro = true 
+                        },
                         viewModel = settingsVm
                     )
                 } else {
@@ -73,7 +81,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// 🔥 Added OptIn for SharedTransitionLayout and AnimatedVisibility
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun AppMainLayout() {
@@ -134,7 +141,6 @@ fun AppMainLayout() {
     }
 }
 
-// 🔥 Added OptIn for shared element transitions
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun BouncyMiniPlayer(
@@ -182,7 +188,6 @@ fun BouncyMiniPlayer(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        // 🔥 This enables the cool transition to the Player screen
                         .sharedElement(
                             rememberSharedContentState(key = "album_art_${song.id}"),
                             animatedVisibilityScope = animatedVisibilityScope
