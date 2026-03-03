@@ -1,14 +1,12 @@
 package com.music.calmplayer.ui.components
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -18,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -28,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.music.calmplayer.data.Song
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun PlayerSheet(
     song: Song?,
@@ -67,7 +66,7 @@ fun PlayerSheet(
     }
 }
 
-
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun FullPlayerContent(
     song: Song,
@@ -85,7 +84,6 @@ fun FullPlayerContent(
     val context = LocalContext.current
     val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager }
 
-    // Performance optimization: local state for sliding to avoid recomposition spam
     var sliderScrubbingValue by remember { mutableFloatStateOf(0f) }
     var isScrubbing by remember { mutableStateOf(false) }
 
@@ -93,78 +91,41 @@ fun FullPlayerContent(
         if (duration > 0) position.toFloat() / duration.toFloat() else 0f
     }
 
-    // Gradient background: NO blur — performant on Intel UHD 600 and Oppo Reno 3
     val surfaceColor = MaterialTheme.colorScheme.surface
     val primaryColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(primaryColor, surfaceColor, surfaceColor)
     )
 
-
-    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-        with(sharedTransitionScope) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(gradientBrush)
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures { _, dragAmount ->
-                            if (dragAmount > 50f) { // Swipe down to collapse
-                                onCollapse()
-                            }
-                        }
-                    }
-            ) {
-                PlayerUIBody(
-                    song = song,
-                    isPlaying = isPlaying,
-                    position = position,
-                    duration = duration,
-                    onPositionChange = onPositionChange,
-                    onPlayPause = onPlayPause,
-                    onSkipNext = onSkipNext,
-                    onSkipPrevious = onSkipPrevious,
-                    onCollapse = onCollapse,
-                    sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = animatedVisibilityScope,
-                    audioManager = audioManager,
-                    currentProgress = currentProgress
-                )
-            }
-        }
-    } else {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(gradientBrush)
-                .pointerInput(Unit) {
-                    detectVerticalDragGestures { _, dragAmount ->
-                        if (dragAmount > 50f) { // Swipe down to collapse
-                            onCollapse()
-                        }
-                    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(gradientBrush)
+            .pointerInput(Unit) {
+                detectVerticalDragGestures { _, dragAmount ->
+                    if (dragAmount > 50f) onCollapse()
                 }
-        ) {
-            PlayerUIBody(
-                song = song,
-                isPlaying = isPlaying,
-                position = position,
-                duration = duration,
-                onPositionChange = onPositionChange,
-                onPlayPause = onPlayPause,
-                onSkipNext = onSkipNext,
-                onSkipPrevious = onSkipPrevious,
-                onCollapse = onCollapse,
-                sharedTransitionScope = null,
-                animatedVisibilityScope = null,
-                audioManager = audioManager,
-                currentProgress = currentProgress
-            )
-        }
+            }
+    ) {
+        PlayerUIBody(
+            song = song,
+            isPlaying = isPlaying,
+            position = position,
+            duration = duration,
+            onPositionChange = onPositionChange,
+            onPlayPause = onPlayPause,
+            onSkipNext = onSkipNext,
+            onSkipPrevious = onSkipPrevious,
+            onCollapse = onCollapse,
+            sharedTransitionScope = sharedTransitionScope,
+            animatedVisibilityScope = animatedVisibilityScope,
+            audioManager = audioManager,
+            currentProgress = currentProgress
+        )
     }
 }
 
-
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun PlayerUIBody(
     song: Song,
@@ -191,7 +152,6 @@ private fun PlayerUIBody(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Top Bar
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -200,40 +160,24 @@ private fun PlayerUIBody(
             IconButton(onClick = onCollapse) {
                 Icon(Icons.Filled.KeyboardArrowDown, "Collapse", modifier = Modifier.size(32.dp))
             }
-            Text(
-                text = "Now Playing",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            IconButton(onClick = { /* Queue shortcut */ }) {
-                Icon(Icons.Filled.QueueMusic, "Queue")
-            }
+            Text(text = "Now Playing", style = MaterialTheme.typography.titleMedium)
+            IconButton(onClick = { }) { Icon(Icons.Filled.QueueMusic, "Queue") }
         }
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        // Album Art with Volume Gesture — NO blur, clean shadow via graphicsLayer
+        // Album Art
         Box(
             modifier = Modifier
-                .size(340.dp)
+                .size(320.dp)
                 .graphicsLayer {
-                    shadowElevation = 20.dp.toPx()
+                    shadowElevation = 12.dp.toPx()
                     shape = RoundedCornerShape(24.dp)
                     clip = true
                 }
-                .pointerInput(Unit) {
-                    detectVerticalDragGestures { _, dragAmount ->
-                        // Swipe up/down to control system volume
-                        val delta = -dragAmount / 10f
-                        val currentVolume = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
-                        val maxVolume = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
-                        val nextVolume = (currentVolume + delta).coerceIn(0f, maxVolume.toFloat()).toInt()
-                        audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, nextVolume, 0)
-                    }
-                }
         ) {
             val imageModifier = Modifier.fillMaxSize()
-            val finalImageModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+            val finalModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
                 with(sharedTransitionScope) {
                     imageModifier.sharedElement(
                         rememberSharedContentState(key = "album_art_${song.id}"),
@@ -245,70 +189,64 @@ private fun PlayerUIBody(
             AsyncImage(
                 model = song.albumArtUri,
                 contentDescription = null,
-                modifier = finalImageModifier,
+                modifier = finalModifier,
                 contentScale = ContentScale.Crop
             )
         }
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        // Info Section
-        Column(
-            horizontalAlignment = Alignment.Start,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = song.title,
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = "${song.artist} • ${song.mood} (${song.bpm} BPM)",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1
-            )
+        // Song Info
+        Column(Modifier.fillMaxWidth()) {
+            Text(text = song.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(text = song.artist, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
-        // Expressive Waveform Seekbar
-        ExpressiveWaveformSeekbar(
-            progress = currentProgress,
-            onValueChange = {
-                onPositionChange((it * duration).toLong())
-            }
+        // Seekbar
+        Slider(
+            value = currentProgress,
+            onValueChange = { onPositionChange((it * duration).toLong()) },
+            colors = SliderDefaults.colors(
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary
+            )
         )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(formatTime(position), style = MaterialTheme.typography.labelMedium)
             Text(formatTime(duration), style = MaterialTheme.typography.labelMedium)
         }
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(40.dp))
 
-        // Expressive Controls — centered with breathing room
-        ExpressiveControlLayout(
-            onPlayPause = onPlayPause,
-            onSkipNext = onSkipNext,
-            onSkipPrevious = onSkipPrevious,
-            isPlaying = isPlaying
-        )
+        // Controls
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onSkipPrevious) { Icon(Icons.Filled.SkipPrevious, null, modifier = Modifier.size(48.dp)) }
+            
+            Surface(
+                onClick = onPlayPause,
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(72.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow, null, modifier = Modifier.size(40.dp))
+                }
+            }
 
-        Spacer(modifier = Modifier.weight(1f))
-
-        // Bottom reach zone spacers are handled by the weight and padding
+            IconButton(onClick = onSkipNext) { Icon(Icons.Filled.SkipNext, null, modifier = Modifier.size(48.dp)) }
+        }
     }
 }
 
 private fun formatTime(ms: Long): String {
-    if (ms <= 0) return "0:00"
     val totalSeconds = ms / 1000
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
-    return String.format("%d:%02d", minutes, seconds)
+    return "%d:%02d".format(minutes, seconds)
 }
