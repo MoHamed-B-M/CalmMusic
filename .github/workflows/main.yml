@@ -21,7 +21,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Required to read git history for changelog
+          fetch-depth: 0 # Needed for git log changelog
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -39,7 +39,6 @@ jobs:
         id: get_version
         run: |
           PROP_FILE="app/version.properties"
-          # Create file if it doesn't exist to prevent grep error
           if [ ! -f "$PROP_FILE" ]; then
             echo "patch=0" > "$PROP_FILE"
             echo "code=1" >> "$PROP_FILE"
@@ -60,7 +59,6 @@ jobs:
       - name: Generate Changelog
         id: build_changelog
         run: |
-          # Grabs the last 5 commit messages
           echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
           git log --pretty=format:"* %s (%h)" -5 >> $GITHUB_OUTPUT
           echo "" >> $GITHUB_OUTPUT
@@ -77,13 +75,18 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon
 
+      - name: Prepare APK for Upload
+        # This solves the "Artifact not found" error by finding ANY apk in the build folder
+        run: |
+          mkdir -p final-artifacts
+          find app/build/outputs/apk/debug/ -name "*.apk" -exec cp {} final-artifacts/calmplayer-release.apk \;
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CalmApp-Debug-APK
-          # Explicit path to the default Gradle output location
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error # This will make the build FAIL here if the APK is missing
+          name: CalmApp-Build-Package
+          path: final-artifacts/calmplayer-release.apk
+          if-no-files-found: error
 
   release:
     name: Create Production-Ready Release
@@ -95,7 +98,7 @@ jobs:
       - name: Download APK
         uses: actions/download-artifact@v4
         with:
-          name: CalmApp-Debug-APK
+          name: CalmApp-Build-Package
           path: release-artifacts
 
       - name: Publish GitHub Release
@@ -104,14 +107,15 @@ jobs:
           tag_name: v${{ needs.build.outputs.app_version }}
           name: "CalmPlayer v${{ needs.build.outputs.app_version }} Stable"
           body: |
-            ## 📝 What's New
+            ## 📝 What's New (Changelog)
             ${{ needs.build.outputs.changelog }}
             
             ---
-            **System Requirements:**
-            - Android 12+ (Optimized for ColorOS)
+            **📱 Device Specs:**
+            - **Target:** Android 12 + (optimized for ColorOS)
+            - **Build Architecture:** universal-debug
           draft: false
           prerelease: false
-          files: release-artifacts/app-debug.apk
+          files: release-artifacts/calmplayer-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
