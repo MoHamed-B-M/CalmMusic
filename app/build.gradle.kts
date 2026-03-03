@@ -7,9 +7,8 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-// Versioning Protocol: Auto-increment patch number and code
+// Fixed Versioning Protocol: Optimized for GitHub Actions
 fun getAutoVersionInfo(): Pair<Int, String> {
-    val baseVersion = "1.0"
     val patchFile = file("version.properties")
     val props = Properties()
     
@@ -17,20 +16,25 @@ fun getAutoVersionInfo(): Pair<Int, String> {
         patchFile.inputStream().use { props.load(it) }
     }
     
-    var patch = props.getProperty("patch", "5").toInt()
-    var code = props.getProperty("code", "5").toInt()
+    // Start at 12 to recover from your 1.0.11 -> 1.0.7 downgrade
+    var patch = props.getProperty("patch", "12").toInt()
+    var code = props.getProperty("code", "12").toInt()
     
-    val isReleaseTask = gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
-    
-    if (isReleaseTask) {
+    // Check if building on GitHub
+    val isCI = System.getenv("GITHUB_ACTIONS") == "true"
+    val isBuilding = gradle.startParameter.taskNames.any { 
+        it.contains("Release", ignoreCase = true) || it.contains("assemble", ignoreCase = true) 
+    }
+
+    if (isCI && isBuilding) {
         patch++
         code++
         props.setProperty("patch", patch.toString())
         props.setProperty("code", code.toString())
-        patchFile.outputStream().use { props.store(it, "Auto-incremented version") }
+        patchFile.outputStream().use { props.store(it, "Auto-incremented by CI") }
     }
     
-    return code to "${baseVersion}.${patch}-alpha"
+    return code to "1.0.${patch}-beta"
 }
 
 android {
@@ -49,54 +53,24 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    signingConfigs {
-        create("release") {
-            val props = Properties()
-            val propFile = file("../config/signing/keystore.properties")
-            if (propFile.exists()) {
-                props.load(FileInputStream(propFile))
-                storeFile = file("../config/signing/calmplayer_keystore.jks")
-                storePassword = props.getProperty("storePassword")
-                keyAlias = props.getProperty("keyAlias")
-                keyPassword = props.getProperty("keyPassword")
-            }
-        }
-    }
-
     buildTypes {
         release {
             isMinifyEnabled = true
-            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("release")
         }
-        debug {
-            applicationIdSuffix = ".debug"
-        }
-    }
-
-    flavorDimensions += "distribution"
-    productFlavors {
-        create("github") {
-            dimension = "distribution"
-        }
-    }
-
-    buildFeatures {
-        compose = true
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
     }
     
-    kotlin {
-        jvmToolchain(17)
-    }
+    // Optimization for Celeron N4000
+    kotlin { jvmToolchain(17) }
 }
 
 dependencies {
+    
+    implementation(platform("androidx.compose:compose-bom:2025.02.00"))
+    implementation("androidx.compose.material3:material3:1.3.1")
+    implementation("androidx.compose.animation:animation")
+    implementation("androidx.navigation:navigation-compose:2.8.5")
+    implementation("io.coil-kt:coil-compose:2.7.0")
     // 🔥 1. Aligning to the 2025.02 BOM for stability
     implementation(platform("androidx.compose:compose-bom:2025.02.00"))
     
