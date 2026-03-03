@@ -129,7 +129,6 @@ fun WelcomeScreen(vm: SettingsViewModel) {
     }
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun AppMainLayout() {
     val navController = rememberNavController()
@@ -189,7 +188,6 @@ fun AppMainLayout() {
     }
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun BouncyMiniPlayer(
     song: Song,

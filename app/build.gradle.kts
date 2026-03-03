@@ -17,7 +17,6 @@ fun getAutoVersionInfo(): Pair<Int, String> {
         patchFile.inputStream().use { props.load(it) }
     }
     
-    // Default to 5 to keep your requested sequence
     var patch = props.getProperty("patch", "5").toInt()
     var code = props.getProperty("code", "5").toInt()
     
@@ -50,7 +49,6 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // 1. Setup Signing Configurations (Matches your YAML secrets)
     signingConfigs {
         create("release") {
             val props = Properties()
@@ -70,8 +68,6 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            
-            // Link to the release signing config
             signingConfig = signingConfigs.getByName("release")
         }
         debug {
@@ -79,12 +75,10 @@ android {
         }
     }
 
-    // 2. Add Product Flavors (Matches your YAML "assembleGithubRelease")
     flavorDimensions += "distribution"
     productFlavors {
         create("github") {
             dimension = "distribution"
-            // This makes the final APK name "CalmPlayer-v1.0.x-alpha-github-release.apk"
         }
     }
 
@@ -103,41 +97,43 @@ android {
 }
 
 dependencies {
+    // 🔥 1. Aligning to the 2025.02 BOM for stability
+    implementation(platform("androidx.compose:compose-bom:2025.02.00"))
+    
     // Core Android dependencies
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-    implementation("androidx.activity:activity-compose:1.9.3")
+    implementation("androidx.activity:activity-compose:1.10.0")
     
-    // Compose BOM
-    implementation(platform("androidx.compose:compose-bom:2024.10.01"))
-    
-    // Compose UI dependencies
+    // Compose UI
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")
     
-    // Material Design 3 - Using stable Expressive APIs
+    // 🔥 2. Material Design 3 - Stable 1.3.1 (Fixes 'Internal' Theme errors)
     implementation("androidx.compose.material3:material3:1.3.1")
-    implementation("androidx.compose.material3.adaptive:adaptive:1.2.0")
-    implementation("androidx.compose.material3.adaptive:adaptive-layout:1.2.0")
-    implementation("androidx.compose.material3.adaptive:adaptive-navigation:1.2.0")
     implementation("androidx.compose.material:material-icons-extended")
+    
+    // 🔥 3. Adaptive Layouts - Stable 1.0.0
+    implementation("androidx.compose.material3.adaptive:adaptive:1.0.0")
+    implementation("androidx.compose.material3.adaptive:adaptive-layout:1.0.0")
+    implementation("androidx.compose.material3.adaptive:adaptive-navigation:1.0.0")
+    
+    // Animations (For Shared Transitions)
     implementation("androidx.compose.animation:animation")
     implementation("androidx.compose.animation:animation-graphics")
-    
-    // Graphics shapes for RoundedPolygon, Morph, etc.
     implementation("androidx.graphics:graphics-shapes:1.0.1")
     
     implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("io.coil-kt:coil-compose:2.7.0")
     
-    // Media3 - Updated to latest stable version
-    implementation("androidx.media3:media3-exoplayer:1.5.0")
-    implementation("androidx.media3:media3-ui:1.5.0")
-    implementation("androidx.media3:media3-session:1.5.0")
+    // Media3
+    implementation("androidx.media3:media3-exoplayer:1.5.1")
+    implementation("androidx.media3:media3-ui:1.5.1")
+    implementation("androidx.media3:media3-session:1.5.1")
     
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("androidx.documentfile:documentfile:1.0.1")

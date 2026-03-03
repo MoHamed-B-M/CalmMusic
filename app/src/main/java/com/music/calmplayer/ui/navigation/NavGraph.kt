@@ -1,5 +1,6 @@
 package com.music.calmplayer.ui.navigation
 
+import androidx.compose.animation.ExperimentalSharedTransitionApi // Required
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
@@ -30,7 +31,8 @@ sealed class Screen(val route: String) {
     object Player : Screen("player")
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+// 🔥 ADDED OptIn for Shared Transitions here
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun CalmMusicNavHost(
     navController: NavHostController,

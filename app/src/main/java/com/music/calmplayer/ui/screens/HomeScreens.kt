@@ -35,7 +35,6 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SettingsBrightness
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.*
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.ui.graphics.Color
@@ -56,7 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.music.calmplayer.data.MediaLibraryHelper
+import com.music.calmplayer.data.MusicRepository
 import com.music.calmplayer.data.Song
 import com.music.calmplayer.ui.components.SquircleButton
 import com.music.calmplayer.ui.components.getSquircleShape
@@ -131,7 +130,7 @@ fun LibraryScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        ExpressiveLoadingIndicator(
+                        CircularProgressIndicator(
                             modifier = Modifier.size(48.dp),
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -481,7 +480,7 @@ fun SearchScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            ExpressiveLoadingIndicator(
+                            CircularProgressIndicator(
                                 modifier = Modifier.size(32.dp),
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -517,7 +516,7 @@ fun SearchScreen(
                 ) {
                     if (isScanning) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            ExpressiveLoadingIndicator(
+                            CircularProgressIndicator(
                                 modifier = Modifier.size(48.dp),
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -547,7 +546,7 @@ fun SearchScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onBackClick: () -> Unit = {},
@@ -556,7 +555,7 @@ fun SettingsScreen(
     val theme by viewModel.themeState.collectAsState()
     val blockedFolders by viewModel.blockedFolders.collectAsState()
     val context = LocalContext.current
-    val helper = remember { MediaLibraryHelper(context) }
+    val helper = remember { MusicRepository(context) }
     var allFolders by remember { mutableStateOf<Set<String>>(emptySet()) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(
         rememberTopAppBarState()

@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.*
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.shape.CircleShape
@@ -37,11 +36,9 @@ import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.toPath
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun getSquircleShape() = MorphingShape(0f)
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun getMorphingCircleShape() = MorphingShape(1f)
 
@@ -131,7 +128,6 @@ fun ExpressiveWaveformSeekbar(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MorphingShape(
     morphProgress: Float
@@ -176,7 +172,6 @@ fun MorphingShape(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SquircleButton(
     onClick: () -> Unit,
