@@ -39,11 +39,9 @@ fun IntroScreen(
     val pagerState = rememberPagerState(pageCount = { 5 })
     val coroutineScope = rememberCoroutineScope()
     
-    // Collecting states from ViewModel
     val themeConfig by viewModel.themeState.collectAsState()
-    val isDynamicColorEnabled by viewModel.dynamicColorState.collectAsState() // New state from VM
+    val isDynamicColorEnabled by viewModel.dynamicColorState.collectAsState()
     
-    // Permission States
     var hasMusicPermission by remember { 
         mutableStateOf(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -67,10 +65,7 @@ fun IntroScreen(
     Scaffold(
         bottomBar = {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
-                    .height(56.dp),
+                modifier = Modifier.fillMaxWidth().padding(24.dp).height(56.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -83,12 +78,7 @@ fun IntroScreen(
                 } else { Spacer(modifier = Modifier.weight(1f)) }
                 
                 Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        "${pagerState.currentPage + 1} of 5",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("${pagerState.currentPage + 1} of 5", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 }
                 
                 Button(
@@ -96,11 +86,8 @@ fun IntroScreen(
                         if (pagerState.currentPage < 4) {
                             coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
                         } else {
-                            // FIXED: Mark intro as done in SharedPreferences
                             val sharedPrefs = context.getSharedPreferences("calm_prefs", Context.MODE_PRIVATE)
                             sharedPrefs.edit().putBoolean("is_first_run", false).apply()
-                            
-                            // Trigger navigation to Home
                             onComplete()
                         }
                     },
@@ -126,7 +113,6 @@ fun IntroScreen(
                     },
                     onRequestBluetooth = { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) requestBluetoothPermission.launch(Manifest.permission.BLUETOOTH_CONNECT) }
                 )
-                // FIXED: Passing dynamic color state
                 2 -> CustomizationStep(
                     themeConfig, 
                     isDynamicEnabled = isDynamicColorEnabled,
@@ -140,149 +126,90 @@ fun IntroScreen(
     }
 }
 
-// ... WelcomeStep and PermissionsStep remain same as your code ...
-
 @Composable
-fun CustomizationStep(
-    themeConfig: ThemeConfig, 
-    isDynamicEnabled: Boolean,
-    onThemeChange: (ThemeConfig) -> Unit,
-    onDynamicToggle: (Boolean) -> Unit
-) {
-    val canUseDynamic = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-
+fun WelcomeStep() {
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Box(
-            modifier = Modifier.size(80.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Filled.Palette, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
-        }
-        Spacer(modifier = Modifier.height(24.dp))
-        Text("Make CalmMusic Yours", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold))
-        Spacer(modifier = Modifier.height(8.dp))
-        Text("Personalize appearance to match your style. Supports Material You dynamic colors on Android 12+.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        
+        Icon(Icons.Filled.MusicNote, null, modifier = Modifier.size(120.dp), tint = MaterialTheme.colorScheme.primary)
         Spacer(modifier = Modifier.height(32.dp))
-        Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                CustomizationSwitch(
-                    title = "Follow System Theme",
-                    subtitle = "Automatically switch between light and dark themes",
-                    icon = Icons.Filled.DarkMode,
-                    checked = themeConfig == ThemeConfig.SYSTEM,
-                    onCheckedChange = { if (it) onThemeChange(ThemeConfig.SYSTEM) else onThemeChange(ThemeConfig.DARK) }
-                )
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                
-                // FIXED: Linked to logic and build check
-                CustomizationSwitch(
-                    title = "Dynamic Colors",
-                    subtitle = if (canUseDynamic) "Apply colors from your wallpaper" else "Not supported on this Android version",
-                    icon = Icons.Filled.ColorLens,
-                    checked = isDynamicEnabled && canUseDynamic,
-                    onCheckedChange = { if (canUseDynamic) onDynamicToggle(it) }
-                )
+        Text("CalmMusic", style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
+        Text("Pure Sound. Zero Distraction.", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        Spacer(modifier = Modifier.height(24.dp))
+        Text("Welcome to a refined listening experience. Optimized for your device.", textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+fun PermissionsStep(hasMusicPermission: Boolean, hasBluetoothPermission: Boolean, onRequestMusic: () -> Unit, onRequestBluetooth: () -> Unit) {
+    Column(modifier = Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Text("Permissions", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(24.dp))
+        PermissionCard("Music Access", "Required to play songs", hasMusicPermission, onClick = onRequestMusic)
+        Spacer(modifier = Modifier.height(16.dp))
+        PermissionCard("Bluetooth", "Required for wireless audio", hasBluetoothPermission, onClick = onRequestBluetooth)
+    }
+}
+
+@Composable
+fun PermissionCard(title: String, description: String, isGranted: Boolean, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(if (isGranted) Icons.Filled.CheckCircle else Icons.Filled.RadioButtonUnchecked, null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(description, style = MaterialTheme.typography.bodySmall)
             }
         }
     }
 }
 
-// ... Rest of your Step functions (Welcome, Gestures, etc.) ...
-/* 
+@Composable
+fun CustomizationStep(themeConfig: ThemeConfig, isDynamicEnabled: Boolean, onThemeChange: (ThemeConfig) -> Unit, onDynamicToggle: (Boolean) -> Unit) {
+    val canUseDynamic = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    Column(modifier = Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Text("Appearance", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(32.dp))
+        Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                CustomizationSwitch("Dark Theme", "Force dark mode", Icons.Filled.DarkMode, themeConfig == ThemeConfig.DARK, onCheckedChange = { onThemeChange(if(it) ThemeConfig.DARK else ThemeConfig.LIGHT) })
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                CustomizationSwitch("Dynamic Colors", "Material You colors", Icons.Filled.ColorLens, isDynamicEnabled && canUseDynamic, onCheckedChange = onDynamicToggle)
+            }
+        }
+    }
+}
+
 @Composable
 fun GesturesStep() {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            modifier = Modifier.size(80.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Filled.Swipe, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
-        }
-        Spacer(modifier = Modifier.height(24.dp))
-        Text("Touch Gestures", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold))
-        Spacer(modifier = Modifier.height(8.dp))
-        Text("Navigate your music library faster with intuitive swipe and tap gestures.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        Text("Mini Player", style = MaterialTheme.typography.labelLarge, modifier = Modifier.align(Alignment.Start), color = MaterialTheme.colorScheme.primary)
-        Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 16.dp)) {
-            CustomizationSwitch(
-                title = "Mini Player Swipe",
-                subtitle = "Swipe left/right to skip tracks",
-                icon = Icons.Filled.SwipeLeftAlt,
-                checked = true,
-                onCheckedChange = {}
-            )
-        }
-        
-        Text("Full Player", style = MaterialTheme.typography.labelLarge, modifier = Modifier.align(Alignment.Start), color = MaterialTheme.colorScheme.primary)
-        Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-            CustomizationSwitch(
-                title = "Swipe to Dismiss",
-                subtitle = "Swipe down on full player to return",
-                icon = Icons.Filled.SwipeDown,
-                checked = true,
-                onCheckedChange = {}
-            )
-        }
+    Column(modifier = Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Icon(Icons.Filled.Swipe, null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary)
+        Text("Gestures", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Swipe the player to change tracks or dismiss.", textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp))
     }
 }
 
 @Composable
 fun FilterMusicStep() {
-    var expanded by remember { mutableStateOf(false) }
-    Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            modifier = Modifier.size(80.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Filled.FilterList, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
-        }
-        Spacer(modifier = Modifier.height(24.dp))
-        Text("Filter Your Music", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold))
-        Spacer(modifier = Modifier.height(8.dp))
-        Text("Exclude unwanted audio items like voice notes, ringtones or short audios.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        
-        Spacer(modifier = Modifier.height(32.dp))
-        Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-            Column {
-                CustomizationSwitch(
-                    title = "Blacklist Mode",
-                    subtitle = "Hide specific folders from your library",
-                    icon = Icons.Filled.Block,
-                    checked = true,
-                    onCheckedChange = {}
-                )
-            }
-        }
+    Column(modifier = Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Icon(Icons.Filled.FilterList, null, modifier = Modifier.size(80.dp), tint = MaterialTheme.colorScheme.primary)
+        Text("Filtering", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("Hide short audio files and voice notes automatically.", textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp))
     }
 }
-*/
+
 @Composable
 fun CustomizationSwitch(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(if(checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = if(checked) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
-        }
+        Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall)
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
-

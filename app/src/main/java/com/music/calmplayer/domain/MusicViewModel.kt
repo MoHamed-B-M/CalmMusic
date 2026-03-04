@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import com.google.common.util.concurrent.MoreExecutors
+import kotlinx.coroutines.flow.first
 
 class MusicViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -102,12 +103,11 @@ class MusicViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
     
-    fun refreshLibrary() {
-        viewModelScope.launch {
-            settingsStore.blockedFoldersFlow.collect { blockedFolders ->
+    // FIX: Simplified refresh logic to be more memory-efficient
+        fun refreshLibrary() {
+            viewModelScope.launch(Dispatchers.IO) {
+                val blockedFolders = settingsStore.blockedFoldersFlow.first()
                 scanAndLoadLibrary(blockedFolders)
-                return@collect
             }
         }
-    }
 }
