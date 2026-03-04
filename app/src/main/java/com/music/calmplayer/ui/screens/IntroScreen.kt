@@ -182,7 +182,7 @@ fun CustomizationStep(themeConfig: ThemeConfig, isDynamicEnabled: Boolean, onThe
         }
     }
 }
-/* 
+
 @Composable
 fun GesturesStep() {
     Column(modifier = Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
@@ -200,7 +200,7 @@ fun FilterMusicStep() {
         Text("Hide short audio files and voice notes automatically.", textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp))
     }
 }
-*/
+
 @Composable
 fun CustomizationSwitch(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
