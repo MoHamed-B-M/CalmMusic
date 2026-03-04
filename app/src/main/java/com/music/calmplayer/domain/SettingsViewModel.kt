@@ -31,6 +31,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         initialValue = null
     )
 
+    val dynamicColorState: StateFlow<Boolean> = settingsStore.dynamicColorFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = true
+    )
+
     fun setMusicFolderUri(uri: String) {
         viewModelScope.launch {
             settingsStore.setMusicFolderUri(uri)
@@ -52,6 +58,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun removeBlockedFolder(path: String) {
         viewModelScope.launch {
             settingsStore.removeBlockedFolder(path)
+        }
+    }
+
+    fun setDynamicColor(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsStore.setDynamicColor(enabled)
         }
     }
 }

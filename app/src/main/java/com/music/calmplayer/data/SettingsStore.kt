@@ -3,6 +3,7 @@ package com.music.calmplayer.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -21,6 +22,7 @@ class SettingsStore(private val context: Context) {
         val THEME_KEY = stringPreferencesKey("theme")
         val BLOCKED_FOLDERS_KEY = stringSetPreferencesKey("blocked_folders")
         val MUSIC_FOLDER_URI_KEY = stringPreferencesKey("music_folder_uri")
+        val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
     }
 
     val themeFlow: Flow<ThemeConfig> = context.dataStore.data.map { preferences ->
@@ -34,6 +36,10 @@ class SettingsStore(private val context: Context) {
 
     val musicFolderUriFlow: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[MUSIC_FOLDER_URI_KEY]
+    }
+
+    val dynamicColorFlow: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[DYNAMIC_COLOR_KEY] ?: true // Default to true
     }
 
     suspend fun setMusicFolderUri(uri: String) {
@@ -59,6 +65,12 @@ class SettingsStore(private val context: Context) {
         context.dataStore.edit { preferences ->
             val current = preferences[BLOCKED_FOLDERS_KEY] ?: emptySet()
             preferences[BLOCKED_FOLDERS_KEY] = current - path
+        }
+    }
+
+    suspend fun setDynamicColor(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[DYNAMIC_COLOR_KEY] = enabled
         }
     }
 }

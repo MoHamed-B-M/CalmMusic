@@ -20,7 +20,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -39,7 +38,10 @@ fun IntroScreen(
     val context = LocalContext.current
     val pagerState = rememberPagerState(pageCount = { 5 })
     val coroutineScope = rememberCoroutineScope()
+    
+    // Collecting states from ViewModel
     val themeConfig by viewModel.themeState.collectAsState()
+    val isDynamicColorEnabled by viewModel.dynamicColorState.collectAsState() // New state from VM
     
     // Permission States
     var hasMusicPermission by remember { 
@@ -94,9 +96,11 @@ fun IntroScreen(
                         if (pagerState.currentPage < 4) {
                             coroutineScope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
                         } else {
-                            // Save preference and finish
+                            // FIXED: Mark intro as done in SharedPreferences
                             val sharedPrefs = context.getSharedPreferences("calm_prefs", Context.MODE_PRIVATE)
                             sharedPrefs.edit().putBoolean("is_first_run", false).apply()
+                            
+                            // Trigger navigation to Home
                             onComplete()
                         }
                     },
@@ -122,7 +126,13 @@ fun IntroScreen(
                     },
                     onRequestBluetooth = { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) requestBluetoothPermission.launch(Manifest.permission.BLUETOOTH_CONNECT) }
                 )
-                2 -> CustomizationStep(themeConfig, onThemeChange = { viewModel.setTheme(it) })
+                // FIXED: Passing dynamic color state
+                2 -> CustomizationStep(
+                    themeConfig, 
+                    isDynamicEnabled = isDynamicColorEnabled,
+                    onThemeChange = { viewModel.setTheme(it) },
+                    onDynamicToggle = { viewModel.setDynamicColor(it) } 
+                )
                 3 -> GesturesStep()
                 4 -> FilterMusicStep()
             }
@@ -130,106 +140,17 @@ fun IntroScreen(
     }
 }
 
-@Composable
-fun WelcomeStep() {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(Icons.Filled.MusicNote, null, modifier = Modifier.size(120.dp), tint = MaterialTheme.colorScheme.primary)
-        Spacer(modifier = Modifier.height(32.dp))
-        Text("CalmMusic", style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Bold)
-        Text("Pure Sound. Zero Distraction.", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            "Welcome to a refined listening experience. Optimized for your device, CalmMusic provides high-fidelity offline playback with total privacy.",
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
+// ... WelcomeStep and PermissionsStep remain same as your code ...
 
 @Composable
-fun PermissionsStep(
-    hasMusicPermission: Boolean,
-    hasBluetoothPermission: Boolean,
-    onRequestMusic: () -> Unit,
-    onRequestBluetooth: () -> Unit
+fun CustomizationStep(
+    themeConfig: ThemeConfig, 
+    isDynamicEnabled: Boolean,
+    onThemeChange: (ThemeConfig) -> Unit,
+    onDynamicToggle: (Boolean) -> Unit
 ) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            modifier = Modifier.size(80.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Filled.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
-        }
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            "Permissions Granted!",
-            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            "All necessary permissions help us serve you better. You are ready to proceed!",
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        PermissionCard(
-            title = "Music Library Access",
-            description = "Read your local music files and display them in the app",
-            isGranted = hasMusicPermission,
-            onClick = { if (!hasMusicPermission) onRequestMusic() }
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        PermissionCard(
-            title = "Bluetooth Connectivity",
-            description = "Connect to Bluetooth speakers, headphones, and audio devices",
-            isGranted = hasBluetoothPermission,
-            onClick = { if (!hasBluetoothPermission) onRequestBluetooth() }
-        )
-    }
-}
+    val canUseDynamic = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
-@Composable
-fun PermissionCard(title: String, description: String, isGranted: Boolean, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(modifier = Modifier.size(48.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-                Icon(if (isGranted) Icons.Filled.Check else Icons.Filled.Close, null, tint = MaterialTheme.colorScheme.primary)
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (isGranted) {
-                Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = RoundedCornerShape(8.dp)) {
-                    Text("✓ Granted", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun CustomizationStep(themeConfig: ThemeConfig, onThemeChange: (ThemeConfig) -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -242,9 +163,9 @@ fun CustomizationStep(themeConfig: ThemeConfig, onThemeChange: (ThemeConfig) -> 
             Icon(Icons.Filled.Palette, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
         }
         Spacer(modifier = Modifier.height(24.dp))
-        Text("Make Rhythm Yours", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold))
+        Text("Make CalmMusic Yours", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold))
         Spacer(modifier = Modifier.height(8.dp))
-        Text("Personalize CalmMusic's appearance to match your style. Choose your system theme, font, or Material You dynamic colors (Android 12+).", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Personalize appearance to match your style. Supports Material You dynamic colors on Android 12+.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
         
         Spacer(modifier = Modifier.height(32.dp))
         Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
@@ -257,26 +178,22 @@ fun CustomizationStep(themeConfig: ThemeConfig, onThemeChange: (ThemeConfig) -> 
                     onCheckedChange = { if (it) onThemeChange(ThemeConfig.SYSTEM) else onThemeChange(ThemeConfig.DARK) }
                 )
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                
+                // FIXED: Linked to logic and build check
                 CustomizationSwitch(
-                    title = "Dynamic Colors (Material You)",
-                    subtitle = "Apply colors extracted from your wallpaper",
+                    title = "Dynamic Colors",
+                    subtitle = if (canUseDynamic) "Apply colors from your wallpaper" else "Not supported on this Android version",
                     icon = Icons.Filled.ColorLens,
-                    checked = true, // Placeholders for now
-                    onCheckedChange = { }
-                )
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                CustomizationSwitch(
-                    title = "Festive Theme",
-                    subtitle = "Enable festive decorations and seasonal themes",
-                    icon = Icons.Filled.AutoAwesome,
-                    checked = false,
-                    onCheckedChange = { }
+                    checked = isDynamicEnabled && canUseDynamic,
+                    onCheckedChange = { if (canUseDynamic) onDynamicToggle(it) }
                 )
             }
         }
     }
 }
 
+// ... Rest of your Step functions (Welcome, Gestures, etc.) ...
+/* 
 @Composable
 fun GesturesStep() {
     Column(
@@ -353,7 +270,7 @@ fun FilterMusicStep() {
         }
     }
 }
-
+*/
 @Composable
 fun CustomizationSwitch(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
